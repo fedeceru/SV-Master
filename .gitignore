@@ -9,6 +9,7 @@ pyvenv.cfg
 
 *.sqlite
 *.db
+*.csv
 
 __pycache__/
 *.py[cod]
