@@ -1,9 +1,7 @@
 """
-DESCRIZIONE DELLA CLASSE DATACLEANER (VERSIONE CORRETTA)
+DataCleaner 
 
-La classe DataCleaner implementa il processo di raffinamento dei dati biologici (GO/HPO) 
-seguendo esattamente i passaggi del notebook Final_WorkFlow, estendendoli a tutti i dataset
-caricati dal DataLoader:
+La classe implementa il processo di raffinamento dei dati biologici (GO/HPO) 
 
 1. BINARIZZAZIONE:
    - Trasformazione di tutti i valori dei dataset (BP, CC, MF, HPO) in formato binario: 
