@@ -5,13 +5,13 @@ import os
 from typing import Tuple
 
 paths = {
-    "BP":  "csv_data/gene_go_matrix_propT_rel-is_a-part_of_ont-BP.csv",
-    "CC": "csv_data/gene_go_matrix_propT_rel-is_a-part_of_ont-CC.csv",
-    "MF": "csv_data/gene_go_matrix_propT_rel-is_a-part_of_ont-MF.csv",
-    "HPO": "csv_data/gene_hpo_matrix_binary_withAncestors_namespace_Phenotypic_abnormality.csv", 
-    "DepthBP": "csv_data/goterm_depth_propT_rel-is_a-part_of_ont-BP.csv",
-    "DepthCC": "csv_data/goterm_depth_propT_rel-is_a-part_of_ont-CC.csv",
-    "DepthMF": "csv_data/goterm_depth_propT_rel-is_a-part_of_ont-MF.csv"
+    "BP":  "gene_go_matrix_propT_rel-is_a-part_of_ont-BP.csv",
+    "CC": "gene_go_matrix_propT_rel-is_a-part_of_ont-CC.csv",
+    "MF": "gene_go_matrix_propT_rel-is_a-part_of_ont-MF.csv",
+    "HPO": "gene_hpo_matrix_binary_withAncestors_namespace_Phenotypic_abnormality.csv", 
+    "DepthBP": "goterm_depth_propT_rel-is_a-part_of_ont-BP.csv",
+    "DepthCC": "goterm_depth_propT_rel-is_a-part_of_ont-CC.csv",
+    "DepthMF": "goterm_depth_propT_rel-is_a-part_of_ont-MF.csv"
 }
 
 class DataLoader:
