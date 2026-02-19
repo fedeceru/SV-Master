@@ -40,7 +40,7 @@ class DataCleaner:
             os.makedirs(self.output_dir)
 
     def _binarize(self, df):
-        return df.applymap(lambda x: 1 if x > 0 else 0)
+        return (df > 0).astype(np.int8)
 
     def _filter_terms_by_frequency(self, df, min_freq=3, max_prop=0.20):
         n_genes = df.shape[0]
@@ -55,26 +55,41 @@ class DataCleaner:
         XT = X.T.tocsr()
         
         col_indices = []
+        sizes = []  
+
         for i in range(XT.shape[0]):
             start, end = XT.indptr[i], XT.indptr[i+1]
-            col_indices.append(XT.indices[start:end])
+            col_indices.append(set(XT.indices[start:end]))
+            sizes.append(end - start)
 
         to_drop = set()
         for i in range(len(cols)):
-            if cols[i] in to_drop:
+            col_i = cols[i]
+            if col_i in to_drop:
                 continue
-            a_idx, a_size = col_indices[i], len(col_indices[i])
+                
+            a_idx = col_indices[i]
+            a_size = sizes[i]
+            
             for j in range(i + 1, len(cols)):
-                if cols[j] in to_drop:
+                col_j = cols[j]
+                if col_j in to_drop:
                     continue
-                b_idx, b_size = col_indices[j], len(col_indices[j])
+                    
+                b_size = sizes[j]
+                
                 if abs(a_size - b_size) / max(a_size, b_size) > size_tol:
                     continue
-                intersection = len(np.intersect1d(a_idx, b_idx, assume_unique=True))
+                    
+                b_idx = col_indices[j]
+                
+                intersection = len(a_idx & b_idx)
                 union = a_size + b_size - intersection
-                jaccard = intersection / union if union > 0 else 0
-                if jaccard >= threshold:
-                    to_drop.add(cols[j])
+                
+                if union > 0:
+                    jaccard = intersection / union
+                    if jaccard >= threshold:
+                        to_drop.add(col_j)
 
         df_clean = df.drop(columns=list(to_drop))
         df_clean = df_clean.loc[(df_clean != 0).any(axis=1)]
@@ -104,6 +119,10 @@ class DataCleaner:
         self.d_bp = self.d_bp.loc[:, self.d_bp.columns.isin(self.bp.columns)]
         self.d_cc = self.d_cc.loc[:, self.d_cc.columns.isin(self.cc.columns)]
         self.d_mf = self.d_mf.loc[:, self.d_mf.columns.isin(self.mf.columns)]
+
+        self.bp = self.bp.loc[:, self.bp.columns.isin(self.d_bp.columns)]
+        self.cc = self.cc.loc[:, self.cc.columns.isin(self.d_cc.columns)]
+        self.mf = self.mf.loc[:, self.mf.columns.isin(self.d_mf.columns)]
 
         self.bp.to_csv(f"{self.output_dir}bp_cleaned.csv")
         self.cc.to_csv(f"{self.output_dir}cc_cleaned.csv")
