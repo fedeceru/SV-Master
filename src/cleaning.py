@@ -12,18 +12,29 @@ La classe implementa il processo di raffinamento dei dati biologici (GO/HPO)
 
 3. RIMOZIONE RIDONDANZA (remove_redundant_terms):
    - Calcolo della similarità di Jaccard tra le colonne (threshold >= 0.9).
+   - Quando disponibile, si usa la profondità ontologica per scegliere quale termine
+     tenere: si preferisce il termine più profondo (più specifico).
    - Rimozione delle righe (geni) rimaste prive di annotazioni dopo il filtraggio.
 
 4. ALLINEAMENTO E SINCRONIZZAZIONE (clean_all):
    - Sincronizzazione dei geni: mantiene i soli geni comuni a tutti i dataset principali (BP, CC, MF, HPO).
-   - SINCRONIZZAZIONE DEPTH (CORRETTA): I file di profondità sono filtrati sulle COLONNE. 
-     Vengono mantenute solo le colonne che corrispondono ai termini GO superstiti nelle matrici principali.
+   - I file di profondità sono filtrati sulle colonne superstiti nelle matrici principali.
+   - I termini GO senza corrispondenza nel file di profondità vengono mantenuti —
+     la pesatura a valle (weighting.py) li imputa con la mediana.
 """
 
 import pandas as pd
 import numpy as np
 import os
 from scipy.sparse import csr_matrix
+
+try:
+    import torch
+    _HAS_TORCH = torch.backends.mps.is_available() or torch.cuda.is_available()
+    if _HAS_TORCH:
+        _DEVICE = torch.device("mps" if torch.backends.mps.is_available() else "cuda")
+except ImportError:
+    _HAS_TORCH = False
 
 class DataCleaner:
     def __init__(self, bp, cc, mf, hpo, d_bp, d_cc, d_mf, output_dir="../data/processed/"):
@@ -49,7 +60,54 @@ class DataCleaner:
         terms_to_drop = term_freq[(term_freq < min_freq) | (term_freq > max_freq)].index
         return df.drop(columns=terms_to_drop)
 
-    def _remove_redundant_terms(self, df, threshold=0.9, size_tol=0.2):
+    def _remove_redundant_terms(self, df, threshold=0.9, size_tol=0.2, depth=None):
+        if _HAS_TORCH:
+            return self._remove_redundant_terms_gpu(df, threshold, size_tol, depth)
+        return self._remove_redundant_terms_cpu(df, threshold, size_tol, depth)
+
+    def _remove_redundant_terms_gpu(self, df, threshold=0.9, size_tol=0.2, depth=None):
+        """GPU-accelerated Jaccard: compute all pairwise intersections via GEMM."""
+        cols = df.columns.tolist()
+        X = torch.tensor(df.values, dtype=torch.float32, device=_DEVICE)  # (genes, terms)
+
+        col_sums = X.sum(dim=0)  # (terms,)
+        intersection = X.T @ X   # (terms, terms) — single GEMM
+        union = col_sums.unsqueeze(1) + col_sums.unsqueeze(0) - intersection
+        union = union.clamp(min=1.0)
+        jaccard = intersection / union
+
+        # Size tolerance mask
+        size_ratio = torch.abs(col_sums.unsqueeze(1) - col_sums.unsqueeze(0)) / \
+                     torch.max(col_sums.unsqueeze(1), col_sums.unsqueeze(0)).clamp(min=1.0)
+
+        # Find redundant pairs: upper triangle, jaccard >= threshold, size_tol OK
+        mask = (jaccard >= threshold) & (size_ratio <= size_tol)
+        mask = torch.triu(mask, diagonal=1)
+
+        # Get pairs as CPU lists for greedy dropping
+        pairs_i, pairs_j = torch.where(mask)
+        pairs_i = pairs_i.cpu().numpy()
+        pairs_j = pairs_j.cpu().numpy()
+
+        # Greedy dropping (sequential, but fast — just iterating pairs)
+        to_drop = set()
+        for pi, pj in zip(pairs_i, pairs_j):
+            col_i, col_j = cols[pi], cols[pj]
+            if col_i in to_drop or col_j in to_drop:
+                continue
+            if depth is not None:
+                d_i = depth.get(col_i, -1)
+                d_j = depth.get(col_j, -1)
+                if d_j > d_i:
+                    to_drop.add(col_i)
+                    continue
+            to_drop.add(col_j)
+
+        df_clean = df.drop(columns=list(to_drop))
+        df_clean = df_clean.loc[(df_clean != 0).any(axis=1)]
+        return df_clean
+
+    def _remove_redundant_terms_cpu(self, df, threshold=0.9, size_tol=0.2, depth=None):
         X = csr_matrix(df.values)
         cols = df.columns.tolist()
         XT = X.T.tocsr()
@@ -89,22 +147,31 @@ class DataCleaner:
                 if union > 0:
                     jaccard = intersection / union
                     if jaccard >= threshold:
+                        if depth is not None:
+                            d_i = depth.get(col_i, -1)
+                            d_j = depth.get(col_j, -1)
+                            if d_j > d_i:
+                                to_drop.add(col_i)
+                                break
                         to_drop.add(col_j)
 
         df_clean = df.drop(columns=list(to_drop))
         df_clean = df_clean.loc[(df_clean != 0).any(axis=1)]
         return df_clean
 
-    def _process_matrix(self, df):
+    def _depth_series(self, depth_df):
+        return depth_df.iloc[0].to_dict()
+
+    def _process_matrix(self, df, depth=None):
         df = self._binarize(df)
         df = self._filter_terms_by_frequency(df)
-        df = self._remove_redundant_terms(df)
+        df = self._remove_redundant_terms(df, depth=depth)
         return df
 
     def clean_all(self):
-        self.bp = self._process_matrix(self.bp)
-        self.cc = self._process_matrix(self.cc)
-        self.mf = self._process_matrix(self.mf)
+        self.bp = self._process_matrix(self.bp, depth=self._depth_series(self.d_bp))
+        self.cc = self._process_matrix(self.cc, depth=self._depth_series(self.d_cc))
+        self.mf = self._process_matrix(self.mf, depth=self._depth_series(self.d_mf))
         self.hpo = self._process_matrix(self.hpo)
 
         common_genes = self.bp.index.intersection(self.cc.index)\
@@ -119,10 +186,6 @@ class DataCleaner:
         self.d_bp = self.d_bp.loc[:, self.d_bp.columns.isin(self.bp.columns)]
         self.d_cc = self.d_cc.loc[:, self.d_cc.columns.isin(self.cc.columns)]
         self.d_mf = self.d_mf.loc[:, self.d_mf.columns.isin(self.mf.columns)]
-
-        self.bp = self.bp.loc[:, self.bp.columns.isin(self.d_bp.columns)]
-        self.cc = self.cc.loc[:, self.cc.columns.isin(self.d_cc.columns)]
-        self.mf = self.mf.loc[:, self.mf.columns.isin(self.d_mf.columns)]
 
         self.bp.to_csv(f"{self.output_dir}bp_cleaned.csv")
         self.cc.to_csv(f"{self.output_dir}cc_cleaned.csv")
