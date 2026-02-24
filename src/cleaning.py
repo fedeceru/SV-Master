@@ -12,15 +12,17 @@ La classe implementa il processo di raffinamento dei dati biologici (GO/HPO)
 
 3. RIMOZIONE RIDONDANZA (remove_redundant_terms):
    - Calcolo della similarità di Jaccard tra le colonne (threshold >= 0.9).
+   - Ottimizzazione pre-Jaccard: si filtrano a monte le coppie con differenza dimensionale eccessiva (size_tol <= 0.2).
    - Quando disponibile, si usa la profondità ontologica per scegliere quale termine
      tenere: si preferisce il termine più profondo (più specifico).
-   - Rimozione delle righe (geni) rimaste prive di annotazioni dopo il filtraggio.
+   - Implementa accelerazione GPU (PyTorch GEMM) per velocizzare il calcolo matriciale, con fallback su CPU (SciPy sparse).
 
 4. ALLINEAMENTO E SINCRONIZZAZIONE (clean_all):
    - Sincronizzazione dei geni: mantiene i soli geni comuni a tutti i dataset principali (BP, CC, MF, HPO).
    - I file di profondità sono filtrati sulle colonne superstiti nelle matrici principali.
-   - I termini GO senza corrispondenza nel file di profondità vengono mantenuti —
-     la pesatura a valle (weighting.py) li imputa con la mediana.
+
+5. SALVATAGGIO:
+   - Salvataggio automatico di tutte le matrici e dei file di profondità puliti in formato CSV nella directory di output.
 """
 
 import pandas as pd

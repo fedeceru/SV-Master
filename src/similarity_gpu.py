@@ -1,7 +1,27 @@
+"""
+NetworkBuilder (GPU - PyTorch)
+
+Costruisce una rete gene x gene unificata a partire dalle quattro viste ontologiche (BP, CC, MF, HPO),
+implementando un'accelerazione hardware custom (CUDA/MPS) tramite PyTorch per risolvere i colli di bottiglia computazionali.
+
+1. MATRICI DI AFFINITÀ CUSTOM (_cosine_distance, _affinity_matrix):
+   - Calcolo ottimizzato della distanza coseno tramite operazioni matriciali su tensori GPU.
+   - Costruzione del kernel esponenziale scalato (KNN-based) equivalente all'implementazione snfpy.
+
+2. SNF — SIMILARITY NETWORK FUSION GPU (_snf_fuse):
+   - Fusione iterativa delle matrici di affinità implementata interamente su tensori PyTorch.
+   - Utilizza i "dominant sets" (KNN-thresholding) per sparsificare il rumore ad ogni iterazione.
+
+3. GESTIONE DEVICE E SALVATAGGIO:
+   - Rilevamento automatico dell'hardware disponibile (MPS per Mac Apple Silicon, CUDA per Nvidia, con fallback CPU).
+   - Ritorno in memoria CPU (NumPy/Pandas) e salvataggio della matrice fusa finale in formato CSV.
+"""
+
 import numpy as np
 import pandas as pd
 import torch
 import os
+from typing import List
 
 
 def _get_device():
@@ -55,7 +75,7 @@ def _dominant_set(W: torch.Tensor, K: int = 20) -> torch.Tensor:
     return Wk / row_sums
 
 
-def _snf_fuse(affinities: list[torch.Tensor], K: int = 20, t: int = 20, alpha: float = 1.0) -> torch.Tensor:
+def _snf_fuse(affinities: List[torch.Tensor], K: int = 20, t: int = 20, alpha: float = 1.0) -> torch.Tensor:
     """SNF iterative fusion on GPU tensors."""
     m = len(affinities)
     N = affinities[0].shape[0]

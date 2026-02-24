@@ -1,18 +1,21 @@
 """
-NetworkBuilder
+NetworkBuilder (CPU)
 
-Costruisce una rete gene x gene unificata a partire dalle quattro viste ontologiche (BP, CC, MF, HPO).
+Costruisce una rete gene x gene unificata a partire dalle quattro viste ontologiche (BP, CC, MF, HPO)
+utilizzando la libreria snfpy.
 
-1. MATRICI DI AFFINITÀ (build_affinity):
+1. MATRICI DI AFFINITÀ (build_and_fuse):
    - Per ciascuna matrice TF-IDF (gene x termine) si calcola una matrice di affinità gene x gene
      tramite un kernel esponenziale scalato basato sulla distanza coseno.
    - Il parametro K controlla il vicinato locale usato per scalare il kernel.
 
-2. SNF — SIMILARITY NETWORK FUSION (fuse):
-   - Le quattro matrici di affinità vengono fuse iterativamente in una rete unica.
+2. SNF — SIMILARITY NETWORK FUSION (snf):
+   - Le quattro matrici di affinità vengono fuse iterativamente in una rete unica tramite snfpy.
    - Ad ogni iterazione le reti vengono rese più simili tra loro, preservando la struttura locale.
-   - Il risultato è una matrice gene x gene che riflette la convergenza di evidenze
-     da tutte e quattro le viste ontologiche.
+   
+3. SALVATAGGIO:
+   - Il risultato è una matrice unificata gene x gene che riflette la convergenza di tutte le viste,
+     esportata in formato CSV.
 """
 
 import numpy as np

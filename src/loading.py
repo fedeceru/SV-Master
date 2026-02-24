@@ -1,4 +1,15 @@
-# Carica i dati dai file CSV e srestituisce i rispettivi DataFrame.
+"""
+DataLoader
+
+Gestisce il caricamento dei dati grezzi dai file CSV e la loro preparazione iniziale.
+
+1. CARICAMENTO MATRICI:
+   - Importa le matrici gene-termine per le tre ontologie GO (BP, CC, MF) e per HPO.
+2. CARICAMENTO PROFONDITÀ (DEPTH):
+   - Importa i file contenenti i valori di profondità ontologica per BP, CC e MF.
+3. GESTIONE ERRORI:
+   - Verifica l'esistenza dei percorsi specificati e gestisce in modo sicuro le eccezioni (es. FileNotFoundError).
+"""
 
 import pandas as pd
 import os

@@ -26,6 +26,10 @@ La classe implementa la pesatura depth-aware TF-IDF sulle matrici binarie gene-t
      il numero di geni annotati con il termine t. Penalizza i termini condivisi da molti geni.
    - Peso finale = TF * IDF, un punteggio di importanza per gene e per termine che tiene conto
      sia della specificità ontologica (depth) sia della rarità statistica (IDF).
+     
+4. SALVATAGGIO:
+   - Esporta le quattro matrici trasformate con TF-IDF in formato CSV nella directory di output specificata.
+
 """
 
 import pandas as pd
