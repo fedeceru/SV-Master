@@ -16,7 +16,7 @@ La classe implementa la pesatura depth-aware TF-IDF sulle matrici binarie gene-t
 2. PESATURA PER PROFONDITÀ (_apply_depth_weighting):
    - Ogni annotazione binaria viene moltiplicata per log(depth + 1), così i termini
      più profondi (più specifici) contribuiscono di più rispetto a quelli superficiali (generici).
-   - Si usa log(1+d) anziché la profondità grezza per comprimere l'intervallo (0–13)
+   - Si usa log(1+d) anziché la profondità grezza per comprimere l'intervallo (0-13)
      ed evitare di penalizzare eccessivamente i termini superficiali o amplificare troppo quelli profondi.
 
 3. TF-IDF (_apply_tfidf):

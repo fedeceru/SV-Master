@@ -7,3 +7,5 @@ snfpy
 scikit-survival
 ipython
 torch
+umap-learn
+hdbscan
