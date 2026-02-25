@@ -6,3 +6,4 @@ scikit-learn<1.6
 snfpy
 scikit-survival
 ipython
+torch
