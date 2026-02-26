@@ -9,3 +9,6 @@ ipython
 torch
 umap-learn
 hdbscan
+ipykernel
+jupyter
+ipywidgets

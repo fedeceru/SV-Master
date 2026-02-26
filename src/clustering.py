@@ -55,23 +55,24 @@ class NetworkClusterer:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
-    def reduce_dimensions(self, method="umap", n_components=2, **kwargs):
+    def reduce_dimensions(self, method="umap", n_components=2, random_state=42, **kwargs):
         """Riduce la dimensionalità dei dati per clustering e analisi spaziale."""
         print(f"[Riduzione] Metodo: {method.upper()} | Componenti: {n_components}")
         
         if method.lower() == "pca":
-            model = PCA(n_components=n_components)
+            model = PCA(n_components=n_components, random_state=random_state)
             self.embeddings = model.fit_transform(self.dist_matrix)
         
         elif method.lower() == "tsne":
             # t-SNE su matrice di distanza precomputata
             model = TSNE(n_components=n_components, metric="precomputed", 
-                         init='random', **kwargs)
+                         init='random', random_state=random_state, **kwargs)
             self.embeddings = model.fit_transform(self.dist_matrix)
             
         elif method.lower() == "umap":
             # UMAP ottimizzato per matrici di distanza
-            model = umap.UMAP(n_components=n_components, metric="precomputed", **kwargs)
+            model = umap.UMAP(n_components=n_components, metric="precomputed",
+                              random_state=random_state, **kwargs)
             self.embeddings = model.fit_transform(self.dist_matrix)
         
         else:
@@ -79,7 +80,8 @@ class NetworkClusterer:
         
         return self.embeddings
 
-    def apply_clustering(self, method="hdbscan", n_clusters=5, min_cluster_size=5):
+    def apply_clustering(self, method="hdbscan", n_clusters=5, min_cluster_size=15,
+                         min_samples=None, cluster_selection_method='eom'):
         """Esegue l'algoritmo di clustering sugli embedding generati."""
         if self.embeddings is None:
             raise ValueError("Errore: Eseguire 'reduce_dimensions' prima del clustering.")
@@ -95,8 +97,12 @@ class NetworkClusterer:
             self.labels = model.fit_predict(self.embeddings)
             
         elif method.lower() == "hdbscan":
-            # HDBSCAN identifica automaticamente i cluster e isola il rumore (-1)
-            model = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, metric='euclidean')
+            model = hdbscan.HDBSCAN(
+                min_cluster_size=min_cluster_size,
+                min_samples=min_samples,
+                cluster_selection_method=cluster_selection_method,
+                metric='euclidean'
+            )
             self.labels = model.fit_predict(self.embeddings)
             
         else:
@@ -127,12 +133,16 @@ class NetworkClusterer:
         # Gestione parametri opzionali per gli algoritmi
         n_clusters = kwargs.pop('n_clusters', 5)
         min_size = kwargs.pop('min_cluster_size', 15)
+        min_samples = kwargs.pop('min_samples', None)
+        cluster_selection_method = kwargs.pop('cluster_selection_method', 'eom')
 
         # 1. Riduzione
         self.reduce_dimensions(method=dim_method, n_components=n_components, **kwargs)
         
         # 2. Clustering
-        self.apply_clustering(method=clus_method, n_clusters=n_clusters, min_cluster_size=min_size)
+        self.apply_clustering(method=clus_method, n_clusters=n_clusters,
+                              min_cluster_size=min_size, min_samples=min_samples,
+                              cluster_selection_method=cluster_selection_method)
         
         # 3. Validazione
         self._evaluate_quality()
