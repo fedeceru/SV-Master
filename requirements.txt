@@ -12,3 +12,4 @@ hdbscan
 ipykernel
 jupyter
 ipywidgets
+requests

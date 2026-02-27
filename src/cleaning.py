@@ -62,7 +62,7 @@ class DataCleaner:
         terms_to_drop = term_freq[(term_freq < min_freq) | (term_freq > max_freq)].index
         return df.drop(columns=terms_to_drop)
 
-    def _remove_redundant_terms(self, df, threshold=0.9, size_tol=0.2, depth=None):
+    def _remove_redundant_terms(self, df, threshold=0.7, size_tol=0.2, depth=None):
         if _HAS_TORCH:
             return self._remove_redundant_terms_gpu(df, threshold, size_tol, depth)
         return self._remove_redundant_terms_cpu(df, threshold, size_tol, depth)
